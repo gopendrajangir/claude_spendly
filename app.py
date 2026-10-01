@@ -1,6 +1,8 @@
 import os
 import sqlite3
 from contextlib import closing
+from datetime import date, datetime
+from functools import wraps
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -13,6 +15,41 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 with app.app_context():
     init_db()
     seed_db()
+
+
+# ------------------------------------------------------------------ #
+# Helpers                                                             #
+# ------------------------------------------------------------------ #
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Please sign in to view that page.")
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+@app.template_filter("inr")
+def inr(value):
+    return f"₹{(value or 0):,.2f}"
+
+
+@app.template_filter("display_date")
+def display_date(value):
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%d %b %Y")
+    except (TypeError, ValueError):
+        return value
+
+
+@app.template_filter("month_year")
+def month_year(value):
+    try:
+        return datetime.strptime(value[:10], "%Y-%m-%d").strftime("%B %Y")
+    except (TypeError, ValueError):
+        return value
 
 
 # ------------------------------------------------------------------ #
@@ -124,8 +161,60 @@ def logout():
 
 
 @app.route("/profile")
+@login_required
 def profile():
-    return "Profile page — coming in Step 4"
+    user_id = session["user_id"]
+    today = date.today()
+    month_start = today.replace(day=1)
+    next_month = date(today.year + (today.month == 12), today.month % 12 + 1, 1)
+
+    with closing(get_db()) as conn:
+        user = conn.execute(
+            "SELECT id, name, email, created_at FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if user is None:
+            session.clear()
+            return redirect(url_for("login"))
+
+        total, count = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM expenses WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        month_total = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) FROM expenses "
+            "WHERE user_id = ? AND date >= ? AND date < ?",
+            (user_id, month_start.isoformat(), next_month.isoformat()),
+        ).fetchone()[0]
+        category_rows = conn.execute(
+            "SELECT category, SUM(amount) AS total FROM expenses "
+            "WHERE user_id = ? GROUP BY category ORDER BY total DESC",
+            (user_id,),
+        ).fetchall()
+        recent = conn.execute(
+            "SELECT id, date, category, description, amount FROM expenses "
+            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 10",
+            (user_id,),
+        ).fetchall()
+
+    categories = [
+        {
+            "category": row["category"],
+            "total": row["total"],
+            "pct": round(row["total"] / total * 100) if total else 0,
+        }
+        for row in category_rows
+    ]
+
+    return render_template(
+        "profile.html",
+        user=user,
+        total=total,
+        count=count,
+        month_total=month_total,
+        top=categories[0] if categories else None,
+        categories=categories,
+        recent=recent,
+    )
 
 
 @app.route("/expenses/add")
