@@ -1,12 +1,14 @@
+import os
 import sqlite3
 from contextlib import closing
 
-from flask import Flask, redirect, render_template, request, url_for
-from werkzeug.security import generate_password_hash
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_db, seed_db
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
 with app.app_context():
     init_db()
@@ -32,6 +34,9 @@ def _valid_email(email):
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if "user_id" in session:
+        return redirect(url_for("profile"))
+
     if request.method == "GET":
         return render_template("register.html")
 
@@ -62,12 +67,39 @@ def register():
         except sqlite3.IntegrityError:
             return fail(already)
 
+    flash("Account created. Please sign in.")
     return redirect(url_for("login"))
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    return render_template("login.html")
+    if "user_id" in session:
+        return redirect(url_for("profile"))
+
+    if request.method == "GET":
+        return render_template("login.html")
+
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+
+    def fail(message):
+        return render_template("login.html", error=message, email=email)
+
+    if not email or not password:
+        return fail("Please fill in all fields.")
+
+    with closing(get_db()) as conn:
+        user = conn.execute(
+            "SELECT id, name, password_hash FROM users WHERE email = ?", (email,)
+        ).fetchone()
+
+    if user is None or not check_password_hash(user["password_hash"], password):
+        return fail("Invalid email or password.")
+
+    session.clear()
+    session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
+    return redirect(url_for("profile"))
 
 
 @app.route("/terms")
@@ -86,7 +118,9 @@ def privacy():
 
 @app.route("/logout")
 def logout():
-    return "Logout — coming in Step 3"
+    session.clear()
+    flash("You have been signed out.")
+    return redirect(url_for("landing"))
 
 
 @app.route("/profile")
