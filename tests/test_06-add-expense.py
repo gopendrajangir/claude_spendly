@@ -793,9 +793,9 @@ class TestRegressions:
     def test_profile_still_works(self, auth_client):
         assert auth_client.get("/profile").status_code == 200
 
-    @pytest.mark.parametrize("path", ["/expenses/1/edit", "/expenses/1/delete"])
-    def test_edit_and_delete_placeholders_unchanged(self, auth_client, path):
-        resp = auth_client.get(path)
+    def test_delete_placeholder_unchanged(self, auth_client):
+        # The edit route became real in step 07; only delete is still a stub.
+        resp = auth_client.get("/expenses/1/delete")
         assert resp.status_code == 200
         assert "coming in Step" in resp.get_data(as_text=True)
 

@@ -87,3 +87,25 @@ def seed_db():
             expenses,
         )
         conn.commit()
+
+
+def get_expense(expense_id, user_id):
+    """Return the expense row if it exists and belongs to user_id, else None."""
+    with closing(get_db()) as conn:
+        return conn.execute(
+            "SELECT id, user_id, amount, category, date, description "
+            "FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        ).fetchone()
+
+
+def update_expense(expense_id, user_id, amount, category, expense_date, description):
+    """Update one of the user's expenses; return the number of rows changed."""
+    with closing(get_db()) as conn:
+        cursor = conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? "
+            "WHERE id = ? AND user_id = ?",
+            (amount, category, expense_date, description, expense_id, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount

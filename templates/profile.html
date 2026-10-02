@@ -92,6 +92,7 @@
                             <th>Category</th>
                             <th>Description</th>
                             <th class="num">Amount</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,6 +102,7 @@
                             <td><span class="profile-pill">{{ e.category }}</span></td>
                             <td>{{ e.description or "—" }}</td>
                             <td class="num">{{ e.amount|inr }}</td>
+                            <td class="actions"><a href="{{ url_for('edit_expense', id=e.id) }}" class="profile-action">Edit</a></td>
                         </tr>
                         {% endfor %}
                     </tbody>
