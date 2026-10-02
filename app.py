@@ -1,13 +1,17 @@
+import hmac
 import os
+import re
+import secrets
 import sqlite3
 from contextlib import closing
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from functools import wraps
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import get_db, init_db, seed_db
+from database.db import CATEGORIES, get_db, init_db, seed_db
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -65,6 +69,61 @@ def _parse_filter_date(raw):
     if parsed.isoformat() != value:
         return None, False
     return value, True
+
+
+MAX_AMOUNT = Decimal("9999999.99")
+MAX_DESCRIPTION = 200
+
+
+def csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    return session["csrf_token"]
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+def _csrf_valid(submitted):
+    expected = session.get("csrf_token", "")
+    # Compare as bytes: compare_digest raises TypeError on non-ASCII str
+    return bool(expected) and hmac.compare_digest(
+        (submitted or "").encode(), expected.encode()
+    )
+
+
+def _validate_expense_form(form):
+    """Return (clean values, None) or (None, first error message)."""
+    raw_amount = form.get("amount", "").strip()
+    category = form.get("category", "")
+    date_value, date_ok = _parse_filter_date(form.get("date"))
+    description = form.get("description", "").strip()
+
+    # [0-9], not \d: \d also matches non-ASCII digits that Decimal accepts
+    if not re.fullmatch(r"[0-9]+(\.[0-9]+)?", raw_amount):
+        return None, "Enter a valid amount."
+    amount = Decimal(raw_amount)
+    if amount == 0:
+        return None, "Amount must be greater than 0."
+    if amount.as_tuple().exponent < -2:
+        return None, "Amount can have at most 2 decimal places."
+    if amount > MAX_AMOUNT:
+        return None, "Amount is too large."
+    if category not in CATEGORIES:
+        return None, "Choose a valid category."
+    if not date_ok or date_value is None:
+        return None, "Enter a valid date (YYYY-MM-DD)."
+    if date_value > date.today().isoformat():
+        return None, "Date cannot be in the future."
+    if len(description) > MAX_DESCRIPTION:
+        return None, "Description must be 200 characters or fewer."
+
+    return {
+        "amount": float(amount.quantize(Decimal("0.01"))),
+        "category": category,
+        "date": date_value,
+        "description": description or None,
+    }, None
 
 
 # ------------------------------------------------------------------ #
@@ -295,9 +354,47 @@ def profile():
     )
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
+@login_required
 def add_expense():
-    return "Add expense — coming in Step 7"
+    def render(error=None, status=200):
+        form = request.form if request.method == "POST" else {}
+        return render_template(
+            "add_expense.html",
+            categories=CATEGORIES,
+            error=error,
+            amount=form.get("amount", ""),
+            category=form.get("category", ""),
+            date_value=form.get("date", date.today().isoformat()),
+            description=form.get("description", ""),
+        ), status
+
+    if request.method == "GET":
+        return render()
+
+    if not _csrf_valid(request.form.get("csrf_token")):
+        return render("Your session expired. Please try again.", 400)
+
+    values, error = _validate_expense_form(request.form)
+    if error:
+        return render(error)
+
+    with closing(get_db()) as conn:
+        conn.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                session["user_id"],
+                values["amount"],
+                values["category"],
+                values["date"],
+                values["description"],
+            ),
+        )
+        conn.commit()
+
+    flash("Expense added.")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit")
