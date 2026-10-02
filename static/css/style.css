@@ -116,6 +116,14 @@ a { color: inherit; text-decoration: none; }
 .nav-links a.nav-user { color: var(--ink-soft); }
 .nav-links a.nav-user:hover { color: var(--ink); }
 
+.nav-links a.is-active {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+}
+
 /* ------------------------------------------------------------------ */
 /* Flash messages                                                      */
 /* ------------------------------------------------------------------ */
@@ -860,6 +868,214 @@ a { color: inherit; text-decoration: none; }
     .profile-cat-row { grid-template-columns: 80px 1fr 84px 40px; gap: 0.5rem; }
 
     .profile-table { min-width: 460px; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Analytics (coming soon)                                             */
+/* ------------------------------------------------------------------ */
+
+/* The design's own palette, defined once as tokens for this page */
+.analytics-section {
+    --coming-green-rgb: 45, 74, 62;
+    --coming-green: #2d4a3e;
+    --coming-green-light: #3d5a4e;
+    --coming-green-deep: #1a2d25;
+    --coming-text: #4a5565;
+    --coming-muted: #99a1af;
+    --coming-line: #f3f4f6;
+    --coming-page: #f9fafb;
+    --coming-font: 'Inter', var(--font-body);
+    --coming-stage: linear-gradient(
+        152.5deg, #f5f5f5 0%, #fafafa 50%, #f6f6f6 60%, #efefef 80%, #e8e8e8 100%
+    );
+
+    background: var(--coming-page);
+    padding: 2rem;
+}
+
+.analytics-stage {
+    position: relative;
+    min-height: 540px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    overflow: hidden;
+    background: var(--coming-stage);
+}
+
+.analytics-orb {
+    position: absolute;
+    width: 384px;
+    height: 384px;
+    border-radius: 50%;
+    background: var(--coming-green);
+    filter: blur(64px);
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+.analytics-orb-top { top: -192px; left: -192px; }
+.analytics-orb-bottom { right: -13px; bottom: -192px; }
+
+.analytics-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 512px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+    font-family: var(--coming-font);
+    background: var(--paper-card);
+    border: 1px solid var(--coming-line);
+    border-radius: 24px;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 20px 12.5px rgba(0, 0, 0, 0.1), 0 8px 5px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-corner {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+.analytics-corner-top {
+    top: 0;
+    right: 0;
+    border-bottom-left-radius: 999px;
+    background: linear-gradient(135deg, rgb(var(--coming-green-rgb)), rgba(var(--coming-green-rgb), 0));
+}
+
+.analytics-corner-bottom {
+    bottom: 0;
+    left: 0;
+    border-top-right-radius: 999px;
+    background: linear-gradient(45deg, rgb(var(--coming-green-rgb)), rgba(var(--coming-green-rgb), 0));
+}
+
+.analytics-icon-wrap {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    margin-bottom: 32px;
+}
+
+.analytics-icon-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--coming-green);
+    filter: blur(24px);
+    opacity: 0.2;
+}
+
+.analytics-icon {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--coming-green), var(--coming-green-deep));
+    box-shadow: 0 10px 7.5px rgba(0, 0, 0, 0.1), 0 4px 3px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-icon img { display: block; width: 48px; height: 48px; }
+
+.analytics-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 24px;
+    margin-bottom: 20px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--coming-green), var(--coming-green-light));
+    box-shadow: 0 4px 3px rgba(0, 0, 0, 0.1), 0 2px 2px rgba(0, 0, 0, 0.1);
+    color: var(--paper-card);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}
+
+.analytics-title {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 36px;
+    letter-spacing: 0.3955px;
+    background: linear-gradient(90deg, var(--coming-green), var(--coming-green-deep));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.analytics-text {
+    max-width: 384px;
+    margin-top: 16px;
+    font-size: 16px;
+    line-height: 26px;
+    letter-spacing: -0.3125px;
+    color: var(--coming-text);
+}
+
+.analytics-dots {
+    display: flex;
+    gap: 8px;
+    margin-top: 32px;
+}
+
+.analytics-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, var(--coming-green), var(--coming-green-light));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-dot:nth-child(1) { opacity: 0.55; }
+.analytics-dot:nth-child(2) { opacity: 0.68; }
+.analytics-dot:nth-child(3) { opacity: 0.84; }
+
+.analytics-note {
+    margin-top: 16px;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.3px;
+    color: var(--coming-muted);
+}
+
+.analytics-bar {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 128px;
+    height: 4px;
+    transform: translateX(-50%);
+    border-radius: 999px;
+    opacity: 0.3;
+    background: linear-gradient(
+        90deg,
+        rgba(var(--coming-green-rgb), 0),
+        rgb(var(--coming-green-rgb)),
+        rgba(var(--coming-green-rgb), 0)
+    );
+}
+
+@media (max-width: 600px) {
+    .analytics-section { padding: 1rem; }
+    .analytics-stage { min-height: 0; padding: 1rem; }
+    .analytics-card { padding: 32px 24px; }
+    .analytics-title { font-size: 26px; line-height: 32px; }
 }
 
 /* ------------------------------------------------------------------ */
