@@ -1,0 +1,32 @@
+{# Shared by add_expense.html and edit_expense.html.
+   Expects: form_action, submit_label, categories, amount, category, date_value, description #}
+<form method="POST" action="{{ form_action }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+        <label for="amount">Amount (₹)</label>
+        <input type="text" id="amount" name="amount" inputmode="decimal"
+               class="form-input" placeholder="450.00"
+               value="{{ amount }}" required autofocus>
+    </div>
+    <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category" name="category" class="form-input" required>
+            <option value="">Select a category</option>
+            {% for c in categories %}
+            <option value="{{ c }}"{% if c == category %} selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="date">Date</label>
+        <input type="date" id="date" name="date"
+               class="form-input" value="{{ date_value }}" required>
+    </div>
+    <div class="form-group">
+        <label for="description">Description (optional)</label>
+        <input type="text" id="description" name="description" maxlength="200"
+               class="form-input" placeholder="Groceries at the local market"
+               value="{{ description }}">
+    </div>
+    <button type="submit" class="btn-submit">{{ submit_label }}</button>
+</form>

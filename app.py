@@ -8,10 +8,26 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from functools import wraps
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import CATEGORIES, get_db, init_db, seed_db
+from database.db import (
+    CATEGORIES,
+    get_db,
+    get_expense,
+    init_db,
+    seed_db,
+    update_expense,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
@@ -92,8 +108,12 @@ def _csrf_valid(submitted):
     )
 
 
-def _validate_expense_form(form):
-    """Return (clean values, None) or (None, first error message)."""
+def _validate_expense_form(form, existing_date=None):
+    """Return (clean values, None) or (None, first error message).
+
+    existing_date lets an edit keep a stored future date unchanged (seeded
+    demo rows are dated later in the month); any other future date is rejected.
+    """
     raw_amount = form.get("amount", "").strip()
     category = form.get("category", "")
     date_value, date_ok = _parse_filter_date(form.get("date"))
@@ -113,7 +133,7 @@ def _validate_expense_form(form):
         return None, "Choose a valid category."
     if not date_ok or date_value is None:
         return None, "Enter a valid date (YYYY-MM-DD)."
-    if date_value > date.today().isoformat():
+    if date_value > date.today().isoformat() and date_value != existing_date:
         return None, "Date cannot be in the future."
     if len(description) > MAX_DESCRIPTION:
         return None, "Description must be 200 characters or fewer."
@@ -403,9 +423,53 @@ def add_expense():
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/edit")
+def _render_edit_form(expense, form=None, error=None, status=200):
+    """Render the edit page; a failed submit's values win over the stored ones."""
+    form = form or {}
+    return render_template(
+        "edit_expense.html",
+        expense_id=expense["id"],
+        categories=CATEGORIES,
+        error=error,
+        amount=form.get("amount", f"{expense['amount']:.2f}"),
+        category=form.get("category", expense["category"]),
+        date_value=form.get("date", expense["date"]),
+        description=form.get("description", expense["description"] or ""),
+    ), status
+
+
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
+@login_required
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    expense = get_expense(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return _render_edit_form(expense)
+
+    if not _csrf_valid(request.form.get("csrf_token")):
+        return _render_edit_form(
+            expense, request.form, "Your session expired. Please try again.", 400
+        )
+
+    values, error = _validate_expense_form(request.form, existing_date=expense["date"])
+    if error:
+        return _render_edit_form(expense, request.form, error)
+
+    changed = update_expense(
+        id,
+        session["user_id"],
+        values["amount"],
+        values["category"],
+        values["date"],
+        values["description"],
+    )
+    if not changed:
+        abort(404)
+
+    flash("Expense updated.")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")
